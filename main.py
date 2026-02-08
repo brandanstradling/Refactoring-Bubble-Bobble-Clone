@@ -287,7 +287,7 @@ class Player(GravityActor):
         else:
             return False
 
-    def update(self):
+    def update(self, input_state):
         # Call GravityActor.update - parameter is whether we want to perform collision detection as we fall. If health
         # is zero, we want the player to just fall out of the level
         super().update(self.health > 0)
@@ -315,9 +315,9 @@ class Player(GravityActor):
             # We're not hurt
             # Get keyboard input. dx represents the direction the player is facing
             dx = 0
-            if keyboard.left:
+            if input_state.left:
                 dx = -1
-            elif keyboard.right:
+            elif input_state.right:
                 dx = 1
 
             if dx != 0:
@@ -329,7 +329,7 @@ class Player(GravityActor):
 
             # Do we need to create a new orb? Space must have been pressed and released, the minimum time between
             # orbs must have passed, and there is a limit of 5 orbs.
-            if space_pressed() and self.fire_timer <= 0 and len(game.orbs) < 5:
+            if input_state.fire_pressed and self.fire_timer <= 0 and len(game.orbs) < 5:
                 # x position will be 38 pixels in front of the player position, while ensuring it is within the
                 # bounds of the level
                 x = min(730, max(70, self.x + self.direction_x * 38))
@@ -339,14 +339,14 @@ class Player(GravityActor):
                 game.play_sound("blow", 4)
                 self.fire_timer = 20
 
-            if keyboard.up and self.vel_y == 0 and self.landed:
+            if input_state.jump_pressed and self.vel_y == 0 and self.landed:
                 # Jump
                 self.vel_y = -16
                 self.landed = False
                 game.play_sound("jump")
 
         # Holding down space causes the current orb (if there is one) to be blown further
-        if keyboard.space:
+        if input_state.fire_held:
             if self.blowing_orb:
                 # Increase blown distance up to a maximum of 120
                 self.blowing_orb.blown_frames += 4
@@ -529,14 +529,17 @@ class Game:
         # in the centre of the screen
         return WIDTH/2
 
-    def update(self):
+    def update(self, input_state):
         self.timer += 1
 
         # Update all objects
-        for obj in self.fruits + self.bolts + self.enemies + self.pops + [self.player] + self.orbs:
+        for obj in self.fruits + self.bolts + self.enemies + self.pops + self.orbs:
             if obj:
                 obj.update()
 
+        if self.player:
+            self.player.update(input_state)
+        
         # Use list comprehensions to remove objects which are no longer wanted from the lists. For example, we recreate
         # self.fruits such that it contains all existing fruits except those whose time_to_live counter has reached zero
         self.fruits = [f for f in self.fruits if f.time_to_live > 0]
@@ -606,24 +609,6 @@ class Game:
                 # If no such sound file exists, print the name
                 print(e)
 
-# Is the space bar currently being pressed down?
-space_down = False
-
-# Has the space bar just been pressed? i.e. gone from not being pressed, to being pressed
-def space_pressed():
-    global space_down
-    if keyboard.space:
-        if space_down:
-            # Space was down previous frame, and is still down
-            return False
-        else:
-            # Space wasn't down previous frame, but now is
-            space_down = True
-            return True
-    else:
-        space_down = False
-        return False
-
 # Pygame Zero calls the update and draw functions each frame
 class State(Enum):
     MENU = 1
@@ -635,22 +620,22 @@ def update():
     input_state = inputs.build(keyboard)
 
     if state == State.MENU:
-        if space_pressed():
+        if input_state.fire_pressed:
             # Switch to play state, and create a new Game object, passing it a new Player object to use
             state = State.PLAY
             game = Game(Player())
         else:
-            game.update()
+            game.update(input_state)
 
     elif state == State.PLAY:
         if game.player.lives < 0:
             game.play_sound("over")
             state = State.GAME_OVER
         else:
-            game.update()
+            game.update(input_state)
 
     elif state == State.GAME_OVER:
-        if space_pressed():
+        if input_state.fire_pressed:
             # Switch to menu state, and create a new game object without a player
             state = State.MENU
             game = Game()
