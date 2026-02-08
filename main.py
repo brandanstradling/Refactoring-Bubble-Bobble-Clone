@@ -1,5 +1,7 @@
 from random import choice, randint, random, shuffle
 from enum import Enum
+from src.constants import *
+from src.ui import draw_text, draw_status
 import pygame, pgzero, pgzrun, sys
 
 # Check Python version number. sys.version_info gives version as a tuple, e.g. if (3,7,2,'final',0) for version 3.7.2.
@@ -17,49 +19,6 @@ pgzero_version = [int(s) if s.isnumeric() else s for s in pgzero.__version__.spl
 if pgzero_version < [1,2]:
     print("This game requires at least version 1.2 of Pygame Zero. You have version {0}. Please upgrade using the command 'pip3 install --upgrade pgzero'".format(pgzero.__version__))
     sys.exit()
-
-# Set up constants
-WIDTH = 800
-HEIGHT = 480
-TITLE = "Cavern"
-
-NUM_ROWS = 18
-NUM_COLUMNS = 28
-
-LEVEL_X_OFFSET = 50
-GRID_BLOCK_SIZE = 25
-
-ANCHOR_CENTRE = ("center", "center")
-ANCHOR_CENTRE_BOTTOM = ("center", "bottom")
-
-LEVELS = [ ["XXXXX     XXXXXXXX     XXXXX",
-            "","","","",
-            "   XXXXXXX        XXXXXXX   ",
-            "","","",
-            "   XXXXXXXXXXXXXXXXXXXXXX   ",
-            "","","",
-            "XXXXXXXXX          XXXXXXXXX",
-            "","",""],
-
-           ["XXXX    XXXXXXXXXXXX    XXXX",
-            "","","","",
-            "    XXXXXXXXXXXXXXXXXXXX    ",
-            "","","",
-            "XXXXXX                XXXXXX",
-            "      X              X      ",
-            "       X            X       ",
-            "        X          X        ",
-            "         X        X         ",
-            "","",""],
-
-           ["XXXX    XXXX    XXXX    XXXX",
-            "","","","",
-            "  XXXXXXXX        XXXXXXXX  ",
-            "","","",
-            "XXXX      XXXXXXXX      XXXX",
-            "","","",
-            "    XXXXXX        XXXXXX    ",
-            "","",""]]
 
 def block(x,y):
     # Is there a level grid block at these coordinates?
@@ -487,7 +446,6 @@ class Robot(GravityActor):
             image += str(1 + ((game.timer // 4) % 4))
         self.image = image
 
-
 class Game:
     def __init__(self, player=None):
         self.player = player
@@ -644,49 +602,6 @@ class Game:
                 # If no such sound file exists, print the name
                 print(e)
 
-# Widths of the letters A to Z in the font images
-CHAR_WIDTH = [27, 26, 25, 26, 25, 25, 26, 25, 12, 26, 26, 25, 33, 25, 26,
-              25, 27, 26, 26, 25, 26, 26, 38, 25, 25, 25]
-
-def char_width(char):
-    # Return width of given character. For characters other than the letters A to Z (i.e. space, and the digits 0 to 9),
-    # the width of the letter A is returned. ord gives the ASCII/Unicode code for the given character.
-    index = max(0, ord(char) - 65)
-    return CHAR_WIDTH[index]
-
-def draw_text(text, y, x=None):
-    if x == None:
-        # If no X pos specified, draw text in centre of the screen - must first work out total width of text
-        x = (WIDTH - sum([char_width(c) for c in text])) // 2
-
-    for char in text:
-        screen.blit("font0"+str(ord(char)), (x, y))
-        x += char_width(char)
-
-IMAGE_WIDTH = {"life":44, "plus":40, "health":40}
-
-def draw_status():
-    # Display score, right-justified at edge of screen
-    number_width = CHAR_WIDTH[0]
-    s = str(game.player.score)
-    draw_text(s, 451, WIDTH - 2 - (number_width * len(s)))
-
-    # Display level number
-    draw_text("LEVEL " + str(game.level + 1), 451)
-
-    # Display lives and health
-    # We only display a maximum of two lives - if there are more than two, a plus symbol is displayed
-    lives_health = ["life"] * min(2, game.player.lives)
-    if game.player.lives > 2:
-        lives_health.append("plus")
-    if game.player.lives >= 0:
-        lives_health += ["health"] * game.player.health
-
-    x = 0
-    for image in lives_health:
-        screen.blit(image, (x, 450))
-        x += IMAGE_WIDTH[image]
-
 # Is the space bar currently being pressed down?
 space_down = False
 
@@ -711,7 +626,6 @@ class State(Enum):
     MENU = 1
     PLAY = 2
     GAME_OVER = 3
-
 
 def update():
     global state, game
@@ -754,10 +668,10 @@ def draw():
         screen.blit("space" + str(anim_frame), (130, 280))
 
     elif state == State.PLAY:
-        draw_status()
+        draw_status(screen, game)
 
     elif state == State.GAME_OVER:
-        draw_status()
+        draw_status(screen, game)
         # Display "Game Over" image
         screen.blit("over", (0, 0))
 
