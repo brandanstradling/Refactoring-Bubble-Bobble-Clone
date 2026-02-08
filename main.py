@@ -1,8 +1,12 @@
 from random import choice, randint, random, shuffle
 from enum import Enum
+import pygame, pgzero, pgzrun, sys
+
 from src.constants import *
 from src.ui import draw_text, draw_status
-import pygame, pgzero, pgzrun, sys
+from src.input import InputBuilder
+
+inputs = InputBuilder()
 
 # Check Python version number. sys.version_info gives version as a tuple, e.g. if (3,7,2,'final',0) for version 3.7.2.
 # Unlike many languages, Python can compare two tuples in the same way that you can compare numbers.
@@ -621,7 +625,6 @@ def space_pressed():
         return False
 
 # Pygame Zero calls the update and draw functions each frame
-
 class State(Enum):
     MENU = 1
     PLAY = 2
@@ -629,6 +632,7 @@ class State(Enum):
 
 def update():
     global state, game
+    input_state = inputs.build(keyboard)
 
     if state == State.MENU:
         if space_pressed():
@@ -685,8 +689,6 @@ try:
 except:
     # If an error occurs, just ignore it
     pass
-
-
 
 # Set the initial game state
 state = State.MENU
