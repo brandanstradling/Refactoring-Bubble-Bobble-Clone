@@ -1,5 +1,6 @@
 from random import choice, randint, random, shuffle
 from enum import Enum
+from src.constants import *
 import pygame, pgzero, pgzrun, sys
 
 # Check Python version number. sys.version_info gives version as a tuple, e.g. if (3,7,2,'final',0) for version 3.7.2.
@@ -487,7 +488,6 @@ class Robot(GravityActor):
             image += str(1 + ((game.timer // 4) % 4))
         self.image = image
 
-
 class Game:
     def __init__(self, player=None):
         self.player = player
@@ -711,7 +711,6 @@ class State(Enum):
     MENU = 1
     PLAY = 2
     GAME_OVER = 3
-
 
 def update():
     global state, game
