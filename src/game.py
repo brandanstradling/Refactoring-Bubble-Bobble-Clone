@@ -2,13 +2,16 @@ from random import choice, randint, random, shuffle
 from pgzero.actor import Actor
 from src.constants import *
 
-def block_at(grid, x, y):
-    grid_x = (x - LEVEL_X_OFFSET) // GRID_BLOCK_SIZE
-    grid_y = y // GRID_BLOCK_SIZE
-    if grid_y > 0 and grid_y < NUM_ROWS:
-        row = grid[grid_y]
-        return grid_x >= 0 and grid_x < NUM_COLUMNS and len(row) > 0 and row[grid_x] != " "
-    else:
+class World:
+    def __init__(self, grid):
+        self.grid = grid
+
+    def is_solid(self, x, y):
+        grid_x = (x - LEVEL_X_OFFSET) // GRID_BLOCK_SIZE
+        grid_y = y // GRID_BLOCK_SIZE
+        if 0 < grid_y < NUM_ROWS:
+            row = self.grid[grid_y]
+            return 0 <= grid_x < NUM_COLUMNS and len(row) > 0 and row[grid_x] != " "
         return False
 
 def sign(x):
@@ -16,9 +19,10 @@ def sign(x):
     return -1 if x < 0 else 1
 
 class CollideActor(Actor):
-    def __init__(self, game, pos, anchor=ANCHOR_CENTRE):
+    def __init__(self, game, world, pos, anchor=ANCHOR_CENTRE):
         super().__init__("blank", pos, anchor)
         self.game = game
+        self.world = world
     
     def move(self, dx, dy, speed):
         new_x, new_y = int(self.x), int(self.y)
@@ -47,7 +51,7 @@ class CollideActor(Actor):
             if ((dy > 0 and new_y % GRID_BLOCK_SIZE == 0 or
                  dx > 0 and new_x % GRID_BLOCK_SIZE == 0 or
                  dx < 0 and new_x % GRID_BLOCK_SIZE == GRID_BLOCK_SIZE-1)
-                and block_at(self.game.grid, new_x, new_y)):
+                and self.world.is_solid(new_x, new_y)):
                     return True
 
             # We only update the object's position if there wasn't a block there.
@@ -59,8 +63,8 @@ class CollideActor(Actor):
 class Orb(CollideActor):
     MAX_TIMER = 250
 
-    def __init__(self, game, pos, dir_x):
-        super().__init__(game, pos)
+    def __init__(self, game, world, pos, dir_x):
+        super().__init__(game, world, pos)
 
         # Orbs are initially blown horizontally, then start floating upwards
         self.direction_x = dir_x
@@ -96,7 +100,7 @@ class Orb(CollideActor):
             if self.trapped_enemy_type != None:
                 # trapped_enemy_type is either zero or one. A value of one means there's a chance of creating a
                 # powerup such as an extra life or extra health
-                self.game.fruits.append(Fruit(self.game, self.pos, self.trapped_enemy_type))
+                self.game.fruits.append(Fruit(self.game, self.world, self.pos, self.trapped_enemy_type))
             self.game.play_sound("pop", 4)
 
         if self.timer < 9:
@@ -111,8 +115,8 @@ class Orb(CollideActor):
 class Bolt(CollideActor):
     SPEED = 7
 
-    def __init__(self, game, pos, dir_x):
-        super().__init__(game, pos)
+    def __init__(self, game, world, pos, dir_x):
+        super().__init__(game, world, pos)
 
         self.direction_x = dir_x
         self.active = True
@@ -147,8 +151,8 @@ class Pop(Actor):
 class GravityActor(CollideActor):
     MAX_FALL_SPEED = 10
 
-    def __init__(self, game, pos):
-        super().__init__(game, pos, ANCHOR_CENTRE_BOTTOM)
+    def __init__(self, game, world, pos):
+        super().__init__(game, world, pos, ANCHOR_CENTRE_BOTTOM)
 
         self.vel_y = 0
         self.landed = False
@@ -183,8 +187,8 @@ class Fruit(GravityActor):
     EXTRA_HEALTH = 3
     EXTRA_LIFE = 4
 
-    def __init__(self, game, pos, trapped_enemy_type=0):
-        super().__init__(game, pos)
+    def __init__(self, game, world, pos, trapped_enemy_type=0):
+        super().__init__(game, world, pos)
 
         # Choose which type of fruit we're going to be.
         if trapped_enemy_type == Robot.TYPE_NORMAL:
@@ -228,10 +232,10 @@ class Fruit(GravityActor):
         self.image = "fruit" + str(self.type) + anim_frame
 
 class Player(GravityActor):
-    def __init__(self, game):
+    def __init__(self, game, world):
         # Call constructor of parent class. Initial pos is 0,0 but reset is always called straight afterwards which
         # will set the actual starting position.
-        super().__init__(game, (0, 0))
+        super().__init__(game, world, (0, 0))
 
         self.lives = 2
         self.score = 0
@@ -312,7 +316,7 @@ class Player(GravityActor):
                 # bounds of the level
                 x = min(730, max(70, self.x + self.direction_x * 38))
                 y = self.y - 35
-                self.blowing_orb = Orb(self.game, (x,y), self.direction_x)
+                self.blowing_orb = Orb(self.game, self.world, (x,y), self.direction_x)
                 self.game.orbs.append(self.blowing_orb)
                 self.game.play_sound("blow", 4)
                 self.fire_timer = 20
@@ -355,8 +359,8 @@ class Robot(GravityActor):
     TYPE_NORMAL = 0
     TYPE_AGGRESSIVE = 1
 
-    def __init__(self, game, pos, type):
-        super().__init__(game, pos)
+    def __init__(self, game, world, pos, type):
+        super().__init__(game, world, pos)
 
         self.type = type
 
@@ -408,7 +412,7 @@ class Robot(GravityActor):
 
         elif self.fire_timer == 8:
             #  Once the fire timer has been set to 0, it will count up - frame 8 of the animation is when the actual bolt is fired
-            self.game.bolts.append(Bolt(self.game, (self.x + self.direction_x * 20, self.y - 38), self.direction_x))
+            self.game.bolts.append(Bolt(self.game, self.world, (self.x + self.direction_x * 20, self.y - 38), self.direction_x))
 
         # Am I colliding with an orb? If so, become trapped by it
         for orb in self.game.orbs:
@@ -430,12 +434,16 @@ class Robot(GravityActor):
 
 class Game:
     def __init__(self, with_player=False, sounds=None):
-        self.player = Player(self) if with_player else None
         self.sounds = sounds
         self.level_colour = -1
         self.level = -1
+        self.player = None
 
         self.next_level()
+
+        if with_player:
+            self.player = Player(self, self.world)
+            self.player.reset()
 
     def fire_probability(self):
         # Likelihood per frame of each robot firing a bolt - they fire more often on higher levels
@@ -460,6 +468,8 @@ class Game:
         # As an alternative, we could have copied the list on the line below '# Set up grid', by writing
         # 'self.grid = list(LEVELS...', then used append or += on the line below.
         self.grid = self.grid + [self.grid[0]]
+
+        self.world = World(self.grid)
 
         self.timer = -1
 
@@ -530,7 +540,7 @@ class Game:
         # Every 100 frames, create a random fruit (unless there are no remaining enemies on this level)
         if self.timer % 100 == 0 and len(self.pending_enemies + self.enemies) > 0:
             # Create fruit at random position
-            self.fruits.append(Fruit(self, (randint(70, 730), randint(75, 400))))
+            self.fruits.append(Fruit(self, self.world, (randint(70, 730), randint(75, 400))))
 
         # Every 81 frames, if there is at least 1 pending enemy, and the number of active enemies is below the current
         # level's maximum enemies, create a robot
@@ -538,7 +548,7 @@ class Game:
             # Retrieve and remove the last element from the pending enemies list
             robot_type = self.pending_enemies.pop()
             pos = (self.get_robot_spawn_x(), -30)
-            self.enemies.append(Robot(self, pos, robot_type))
+            self.enemies.append(Robot(self, self.world, pos, robot_type))
 
         # End level if there are no enemies remaining to be created, no existing enemies, no fruit, no popping orbs,
         # and no orbs containing trapped enemies. (We don't want to include orbs which don't contain trapped enemies,
