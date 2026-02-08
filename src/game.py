@@ -438,6 +438,7 @@ class Game:
         self.level_colour = -1
         self.level = -1
         self.player = None
+        self.world = None
 
         self.next_level()
 
@@ -469,7 +470,14 @@ class Game:
         # 'self.grid = list(LEVELS...', then used append or += on the line below.
         self.grid = self.grid + [self.grid[0]]
 
-        self.world = World(self.grid)
+        if self.world is None:
+            self.world = World(self.grid)
+        else:
+            self.world.grid = self.grid
+
+        if self.player:
+            self.player.world = self.world
+            self.player.reset()
 
         self.timer = -1
 
