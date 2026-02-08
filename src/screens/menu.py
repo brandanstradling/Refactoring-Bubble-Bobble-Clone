@@ -8,6 +8,12 @@ class MenuScreen:
         self.music = music
         self.game = Game(with_player=False, sounds=sounds)
 
+        try:
+            self.music.play("theme")
+            self.music.set_volume(0.5)
+        except Exception as e:
+            print(e)
+
     def update(self, input_state):
         self.game.update(None)
         if input_state.fire_pressed:
